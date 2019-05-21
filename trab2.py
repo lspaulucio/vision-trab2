@@ -18,7 +18,6 @@ O trabalho poderá ser feito em dupla e deverá ser entregue/apresentado até o 
 Vocês deverão enviar o trabalho para raquel@ele.ufes.br até a data prevista e agendar a apresentação.
 """
 
-import imutils
 import cv2 as cv
 import numpy as np
 import MyLib as ml

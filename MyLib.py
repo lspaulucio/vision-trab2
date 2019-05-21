@@ -5,14 +5,26 @@
 """
 
 import numpy as np
-from random import sample
+import random
+
+random.seed(0)
 
 
-def euclidianDistance(x, y):
-    return np.sqrt((x - y)**2).sum()
+def transferError(x, xi, H):
+    x_p = np.dot(H, x)
+    x_p /= x_p[2]
+
+    return np.linalg.norm(xi - x_p)
 
 
-#fazer geometric error
+def symmetricError(x, xi, H):
+    x_p = np.dot(H, x)
+    x_p /= x_p[2]
+
+    xi_p = np.dot(np.linalg.inv(H), xi)
+    xi_p /= xi_p[2]
+
+    return np.linalg.norm(xi - x_p) + np.linalg.norm(x - xi_p)
 
 
 def normalizePoints(points):
@@ -84,43 +96,78 @@ def collinear(x1, y1, x2, y2, x3, y3):
         print("No")
 
 
-def RANSAC(src, dst, min_pts_required=4, tolerancia=5.0, threshold=0.6, N=1000):
+def getInliersSet(src, dst, H, tolerance):
 
-    if len(src) < min_pts_required:
+    inliers = []
+
+    src = cart2homo(src).T
+    dst = cart2homo(dst).T
+
+    src_proj = np.dot(H, src)
+    src_proj /= src_proj[2]
+
+    dst_proj = np.dot(np.linalg.inv(H), dst)
+    dst_proj /= dst_proj[2]
+
+    print(src[:,0])
+    print(src_proj[:,0])
+
+    exit()
+
+
+    return
+
+
+
+def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N=1000):
+
+    if len(src_pts) < min_pts_required:
         print("Number of src points don't satisfy minimum required.")
         return None
 
-    if len(src) != len(dst):
+    if len(src_pts) != len(dst_pts):
         print("Number of src points and dst points don't match.")
         return None
 
-    NUM_POINTS = len(src)
+    NUM_POINTS = len(src_pts)
+    H_best = None
+    MIN_ERROR = 100000000000000000000000000
 
     for i in range(0, N):
-        samples_index = sample(NUM_POINTS, min_pts_required)
-        src_sample = src[samples_index]
-        dst_sample = dst[samples_index]
+        samples_index = random.sample(range(NUM_POINTS), min_pts_required)
+        src_sample = src_pts[samples_index]
+        dst_sample = dst_pts[samples_index]
 
-        A = createMatrixA(src_sample, dst_sample)
+        # Normalizing points
+        src_norm, src_T = normalizePoints(src_sample)
+        dst_norm, dst_T = normalizePoints(dst_sample)
 
-        [U, S, V] = np.linalg.svd(np.dot(A.T, A))
+        A = createMatrixA(src_norm, dst_norm)
+
+        U, S, V = np.linalg.svd(A)
 
         H = np.reshape(V[:, -1], (3, 3))
 
         src_sample = cart2homo(src_sample).T
         dst_sample = cart2homo(dst_sample).T
 
-        proj_src = np.dot(H, src_sample)
-        proj_src /= proj_src[2]
+        # Denormalizing H --> H = (T'^-1) x Ĥ x T
+        H = np.dot(H, src_T)
+        H = np.dot(np.linalg.inv(dst_T), H)
 
-        proj_dst = np.dot(np.linalg.inv(H), dst_sample)
-        proj_dst /= proj_dst[2]
+        getInliersSet(src_pts, dst_pts, H, tolerance)
 
-        # symmetric transfer error
-        erro = euclidianDistance(dst_sample, proj_src) + euclidianDistance(src_sample, proj_dst)
+        erro = transferError(src_sample, dst_sample, H)
+        print(erro)
+
+        if erro < MIN_ERROR:
+            MIN_ERROR = erro
+            H_best =  H
+            print("ERRO " + str(erro))
 
 
-
+    print(MIN_ERROR)
+    print(H_best)
     exit()
 
 
@@ -138,10 +185,10 @@ def createMatrixA(x, y):
         x, y = p
         xp, yp = pi
         # primeira linha
-        A[i, 0:3] = np.insert(-p, 2, -1)  # -x -y -1
+        A[i, 0:3] = np.insert(-p, 2, -1)  # -x -y -1 0 0 0 x*xp y*xp xp
         A[i, -3:] = np.array([x*xp, y*xp, xp])
         # segunda linha
-        A[i+1, 3:6] = np.insert(-p, 2, -1)
+        A[i+1, 3:6] = np.insert(-p, 2, -1)  # 0 0 0 -x -y -1 x*yp y*yp yp
         A[i+1, -3:] = np.array([x*yp, y*yp, yp])
 
     return A
@@ -149,39 +196,8 @@ def createMatrixA(x, y):
 
 def findHomography(src, dst, type="RANSAC", reprojectionErrorThreshold=5.0):
 
-    NUM_ITER = 1000
-    NUM_POINTS = 4
-    error = 10000000000000000000
-    for i in range(0, NUM_ITER):
-        # samples_index = np.random.randint(0, len(src), NUM_POINTS)
-        # samples_index = np.array([0,1,2,3])
-        if i+3 > 288:
-            break
-        samples_index = np.array([i, i+1, i+2, i+3])
-        src_sample = src[samples_index]
-        dst_sample = dst[samples_index]
+    RANSAC(src, dst)
 
-        A = createMatrixA(src_sample, dst_sample)
-
-        [U, S, V] = np.linalg.svd(np.dot(A.T, A))
-
-        H = np.reshape(V[:, -1], (3, 3))
-
-        src_sample = cart2homo(src_sample)
-        dst_sample = cart2homo(dst_sample)
-
-        proj_src = np.dot(H, src_sample.T)
-        proj_src /= proj_src[2]
-
-        proj_dst = np.dot(np.linalg.inv(H), dst_sample.T)
-        proj_dst /= proj_dst[2]
-
-        # symmetric transfer error
-        erro = euclidianDistance(dst_sample.T, proj_src) + euclidianDistance(src_sample.T, proj_dst)
-        if erro < error:
-            error = erro
-
-    print(error)
     exit()
 
     # [[ 3.88128952e-01  5.19597837e-02  1.20670565e+01]
