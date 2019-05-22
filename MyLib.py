@@ -151,11 +151,8 @@ def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N
             num_inliers = inliers
             H_best = H
             mask_best = mask
-
     print(num_inliers)
-    print(H_best)
-    exit()
-
+    return H_best, mask_best
 
 def cart2homo(points):
     return np.append(points, np.ones((len(points), 1)), axis=1)
@@ -182,12 +179,11 @@ def createMatrixA(x, y):
 
 def findHomography(src, dst, type="RANSAC", reprojectionErrorThreshold=5.0):
 
-    RANSAC(src, dst)
+    H, mask = RANSAC(src, dst)
 
-    exit()
 
     # [[ 3.88128952e-01  5.19597837e-02  1.20670565e+01]
     # [-2.49799069e-01  7.69568940e-01  2.23373460e+02]
     # [-3.28739078e-04  1.58800881e-04  1.00000000e+00]]
 
-    # return M, mask
+    return H, mask

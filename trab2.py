@@ -26,8 +26,8 @@ from matplotlib import pyplot as plt
 # Using SIFT to estimate Homography between images and to warp the first image
 
 MIN_MATCH_COUNT = 10
-img1 = cv.imread('images/outdoors01.jpg', 0)  # queryImage
-img2 = cv.imread('images/outdoors02.jpg', 0)  # trainImage
+img1 = cv.imread('images/photo02a.jpg', 0)  # queryImage
+img2 = cv.imread('images/box.jpg', 0)  # trainImage
 
 # img1 = imutils.rotate_bound(img1,180)
 
@@ -66,32 +66,31 @@ if len(good) > MIN_MATCH_COUNT:
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good])
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good])
     M, mask = ml.findHomography(src_pts, dst_pts, cv.RANSAC, 5.0)
-    exit()
-#     matchesMask = mask.ravel().tolist()
-#
-#     img4 = cv.warpPerspective(img1, M, (img1.shape[1],img1.shape[0])) #, None) #, flags[, borderMode[, borderValue]]]]	)
-#
-# else:
-#     print( "Not enough matches are found - {}/{}".format(len(good), MIN_MATCH_COUNT) )
-#     matchesMask = None
-#
-# draw_params = dict(matchColor = (0,255,0), # draw matches in green color
-#                    singlePointColor = None,
-#                    matchesMask = matchesMask, # draw only inliers
-#                    flags = 2)
-# img3 = cv.drawMatches(img1,kp1,img2,kp2,good,None,**draw_params)
-#
-# fig = plt.figure(figsize=(25,10))
-# ax1 = fig.add_subplot(2,2,1)
-# plt.imshow(img3, 'gray')
-# ax1 = fig.add_subplot(2,2,2)
-# plt.title('First image')
-# plt.imshow(img1,'gray')
-# ax1 = fig.add_subplot(2,2,3)
-# plt.title('Second image')
-# plt.imshow(img2,'gray')
-# ax1 = fig.add_subplot(2,2,4)
-# plt.title('First image after transformation')
-# plt.imshow(img4,'gray')
-#
-# plt.show()
+    matchesMask = mask.ravel().tolist()
+
+    img4 = cv.warpPerspective(img1, M, (img1.shape[1],img1.shape[0])) #, None) #, flags[, borderMode[, borderValue]]]]	)
+
+else:
+    print( "Not enough matches are found - {}/{}".format(len(good), MIN_MATCH_COUNT) )
+    matchesMask = None
+
+draw_params = dict(matchColor = (0,255,0), # draw matches in green color
+                   singlePointColor = None,
+                   matchesMask = matchesMask, # draw only inliers
+                   flags = 2)
+img3 = cv.drawMatches(img1,kp1,img2,kp2,good,None,**draw_params)
+
+fig = plt.figure(figsize=(25,10))
+ax1 = fig.add_subplot(2,2,1)
+plt.imshow(img3, 'gray')
+ax1 = fig.add_subplot(2,2,2)
+plt.title('First image')
+plt.imshow(img1,'gray')
+ax1 = fig.add_subplot(2,2,3)
+plt.title('Second image')
+plt.imshow(img2,'gray')
+ax1 = fig.add_subplot(2,2,4)
+plt.title('First image after transformation')
+plt.imshow(img4,'gray')
+
+plt.show()
