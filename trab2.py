@@ -26,8 +26,8 @@ from matplotlib import pyplot as plt
 # Using SIFT to estimate Homography between images and to warp the first image
 
 MIN_MATCH_COUNT = 10
-img1 = cv.imread('images/box.jpg', 0)  # queryImage
-img2 = cv.imread('images/photo02a.jpg', 0)  # trainImage
+img1 = cv.imread('images/outdoors01.jpg', 0)  # queryImage
+img2 = cv.imread('images/outdoors02.jpg', 0)  # trainImage
 
 # img1 = imutils.rotate_bound(img1,180)
 
@@ -73,6 +73,7 @@ if len(good) > MIN_MATCH_COUNT:
 else:
     print( "Not enough matches are found - {}/{}".format(len(good), MIN_MATCH_COUNT) )
     matchesMask = None
+    exit()
 
 draw_params = dict(matchColor = (0,255,0), # draw matches in green color
                    singlePointColor = None,

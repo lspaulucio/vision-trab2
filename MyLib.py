@@ -108,7 +108,7 @@ def calcHomography(src, dst, normalize=True):
     H = np.reshape(V[-1], (3, 3))
 
     if normalize:
-        # Denormalizing H --> H = (T'^-1) x Ĥ x T
+        # Denormalizing Ĥ --> H = (T'^-1) x Ĥ x T
         H = np.dot(H, src_T)
         H = np.dot(np.linalg.inv(dst_T), H)
 
@@ -151,7 +151,7 @@ def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N
             num_inliers = inliers
             H_best = H
             mask_best = mask
-    print(num_inliers)
+
     return H_best, mask_best
 
 
@@ -190,8 +190,11 @@ def findHomography(src, dst, type="RANSAC", reprojectionErrorThreshold=5.0):
     src = cart2homo(src[idx]).T
     dst = cart2homo(dst[idx]).T
 
-    solucao = optimize.least_squares(symmetricError, H.reshape(-1), method="lm", args=(src, dst), verbose=1, max_nfev=50000)
+    solucao = optimize.least_squares(symmetricError, H.reshape(-1), method="lm", args=(src, dst), verbose=False, max_nfev=50000)
     H = solucao.x.reshape((3, 3))
+    print("Number of inliers: {}".format(np.count_nonzero(mask)))
+    print("H:\n {}".format(H))
+
     # [[ 3.88128952e-01  5.19597837e-02  1.20670565e+01]
     # [-2.49799069e-01  7.69568940e-01  2.23373460e+02]
     # [-3.28739078e-04  1.58800881e-04  1.00000000e+00]]
