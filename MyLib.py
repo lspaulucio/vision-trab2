@@ -26,13 +26,6 @@ def symmetricError(x, xi, H):
 
 
 def normalizePoints(points):
-    # Lembrar q passa por referencia os pontos
-
-    # x - x_bar
-    # x_pts -= bar[0]
-    # y - y_bar
-    # y_pts -= bar[1]
-
     # 2d points [x,y]: First column xi, second column yi
     # Centroid
     center = np.mean(points, axis=0)  # [x_bar, y_bar]
@@ -46,52 +39,21 @@ def normalizePoints(points):
                   [0, s, -s*center[1]],
                   [0, 0,           1]])
 
-    # % compute the translation
-    # x_bar = mean(x, 2);
-    #
-    # % center the points
-    # % faster than xc = x - repmat(x_bar, 1, size(x, 2));
-    # xc(1, :) = x(1, :) - x_bar(1);
-    # xc(2, :) = x(2, :) - x_bar(2);
-    # % compute the average point distance
-    # rho = sqrt(sum(xc.^2, 1));  sqrt(x - x_bar)
-    # rho_bar = mean(rho);        mean(sqrt(x - x_bar))
-    #
-    # % compute the scale factor
-    # s = sqrt(2)/rho_bar;
-    #
-    # % scale the points
-    # xn = s*xc;
-    #
-    # % compute the transformation matrix
-    # T = [s 0 -s*x_bar(1); 0 s -s*x_bar(2); 0 0 1];
     return norm_pts, T
 
 
-def collinear(x1, y1, x2, y2, x3, y3):
-    """ Calculation the area of
-        triangle. We have skipped
-        multiplication with 0.5 to
-        avoid floating point computations """
-    a = x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)
+def isCollinear(points):
+    """ Check collinearity by calculating the area of triangle. """
 
-    if (a == 0):
-        print("Yes")
-    else:
-        print("No")
-# eps=0.0000005
+    EPSILON = 0.000005
+    indexes = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]]
 
-# Slope based solution to check if three
-# points are collinear.
-
-# function to check if
-# point collinear or not
-def collinear(x1, y1, x2, y2, x3, y3):
-
-    if ((y3 - y2)*(x2 - x1) == (y2 - y1)*(x3 - x2)):
-        print("Yes")
-    else:
-        print("No")
+    for i in indexes:
+        matrix = cart2homo(points[i])
+        area = np.linalg.det(matrix)
+        if np.abs(area) <= EPSILON:
+            return True
+    return False
 
 
 def getInliersNumber(src, dst, H, tolerance, f_error):
@@ -106,7 +68,27 @@ def getInliersNumber(src, dst, H, tolerance, f_error):
     return mask
 
 
-def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N=1000, f_error=transferError):
+def calcHomography(src, dst, normalize=True):
+
+    if normalize:
+        # Normalizing points
+        src_pts, src_T = normalizePoints(src)
+        dst_pts, dst_T = normalizePoints(dst)
+
+    A = createMatrixA(src_pts, dst_pts)
+    U, S, V = np.linalg.svd(A)
+    H = np.reshape(V[-1], (3, 3))
+
+    if normalize:
+        # Denormalizing H --> H = (T'^-1) x Ĥ x T
+        H = np.dot(H, src_T)
+        H = np.dot(np.linalg.inv(dst_T), H)
+
+    return H
+
+
+def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N=2000,
+           f_error=transferError, normalize=True):
 
     if len(src_pts) < min_pts_required:
         print("Number of src points don't satisfy minimum required.")
@@ -122,28 +104,19 @@ def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N
     num_inliers = 0
 
     for i in range(0, N):
-        samples_index = random.sample(range(NUM_POINTS), min_pts_required)
-        src_sample = src_pts[samples_index]
+        collinear = True
+        while collinear:
+            samples_index = random.sample(range(NUM_POINTS), min_pts_required)
+            src_sample = src_pts[samples_index]
+            collinear = isCollinear(src_sample)
+
         dst_sample = dst_pts[samples_index]
 
-        # Normalizing points
-        # src_norm, src_T = normalizePoints(src_sample)
-        # dst_norm, dst_T = normalizePoints(dst_sample)
-        src_norm = src_sample
-        dst_norm = dst_sample
-
-        A = createMatrixA(src_norm, dst_norm)
-
-        U, S, V = np.linalg.svd(A)
-
-        H = np.reshape(V[-1], (3, 3))
+        H = calcHomography(src_sample, dst_sample, normalize=True)
 
         src_sample = cart2homo(src_sample).T
         dst_sample = cart2homo(dst_sample).T
 
-        # Denormalizing H --> H = (T'^-1) x Ĥ x T
-        # H = np.dot(H, src_T)
-        # H = np.dot(np.linalg.inv(dst_T), H)
         mask = getInliersNumber(src_pts, dst_pts, H, 5.0, f_error)
         inliers = np.count_nonzero(mask)
 
@@ -151,8 +124,10 @@ def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N
             num_inliers = inliers
             H_best = H
             mask_best = mask
+
     print(num_inliers)
     return H_best, mask_best
+
 
 def cart2homo(points):
     return np.append(points, np.ones((len(points), 1)), axis=1)
@@ -181,6 +156,15 @@ def findHomography(src, dst, type="RANSAC", reprojectionErrorThreshold=5.0):
 
     H, mask = RANSAC(src, dst)
 
+    idx = (mask == 1)
+
+    # NORMALIZAR PONTOS
+    H = calcHomography(src[idx], dst[idx], normalize=True)
+
+    # OTIMIZAR
+    # H^-1 x dst, H para funcao de otimizacao
+
+    #optimize(src, dst, H)
 
     # [[ 3.88128952e-01  5.19597837e-02  1.20670565e+01]
     # [-2.49799069e-01  7.69568940e-01  2.23373460e+02]

@@ -84,3 +84,15 @@ https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_recons
 
 In other words, checking collinear(p1,p2,p3), collinear(p2,p3,p4), and collinear(p1,p3,p4) is not sufficient
 -- it misses the case where points 1,2, and 4 are collinear -- and you need to also check for collinear(p1,p2,p4).
+
+# Slope based solution to check if three
+# points are collinear.
+
+# function to check if
+# point collinear or not
+def collinear(x1, y1, x2, y2, x3, y3):
+
+    if ((y3 - y2)*(x2 - x1) == (y2 - y1)*(x3 - x2)):
+        print("Yes")
+    else:
+        print("No")
