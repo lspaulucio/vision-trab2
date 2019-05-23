@@ -4,18 +4,21 @@
     Trabalho 2 de Visão Computacional
 """
 
-import numpy as np
 import random
+import numpy as np
+import scipy.optimize as optimize
 
 
-def transferError(x, xi, H):
+def transferError(H, x, xi):
+    H = H.reshape((3, 3))
     x_p = np.dot(H, x)
     x_p /= x_p[2]
 
     return np.linalg.norm(xi - x_p, axis=0)
 
 
-def symmetricError(x, xi, H):
+def symmetricError(H, x, xi):
+    H = H.reshape((3,3))
     x_p = np.dot(H, x)
     x_p /= x_p[2]
 
@@ -42,18 +45,43 @@ def normalizePoints(points):
     return norm_pts, T
 
 
-def isCollinear(points):
-    """ Check collinearity by calculating the area of triangle. """
+def checkSubset(src, dst):
+
+    if len(src) != 4 or len(dst) != 4:
+        print("Subset length isn't 4")
+        return
 
     EPSILON = 0.000005
     indexes = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]]
 
+    negative = 0;
+
     for i in indexes:
-        matrix = cart2homo(points[i])
-        area = np.linalg.det(matrix)
-        if np.abs(area) <= EPSILON:
-            return True
-    return False
+        matA = cart2homo(src[i])
+        matB = cart2homo(dst[i])
+        areaA = np.linalg.det(matA)
+        areaB = np.linalg.det(matB)
+
+        # Check collinearity by calculating the area of triangle.
+        if np.abs(areaA) <= EPSILON or np.abs(areaB) <= EPSILON:
+            # Collinear points
+            return False
+
+        # We check whether the minimal set of points for the homography estimation
+        # are geometrically consistent. We check if every 3 correspondences sets
+        # fulfills the constraint.
+        #
+        # The usefullness of this constraint is explained in the paper:
+        #
+        # "Speeding-up homography estimation in mobile devices"
+        # Journal of Real-Time Image Processing. 2013. DOI: 10.1007/s11554-012-0314-1
+        # Pablo Marquez-Neila, Javier Lopez-Alberca, Jose M. Buenaposada, Luis Baumela
+        negative += areaA * areaB < 0;
+
+    if negative != 0 and negative != 4:
+        return False;
+
+    return True;
 
 
 def getInliersNumber(src, dst, H, tolerance, f_error):
@@ -63,7 +91,7 @@ def getInliersNumber(src, dst, H, tolerance, f_error):
     src = cart2homo(src).T
     dst = cart2homo(dst).T
 
-    erro = f_error(src, dst, H)
+    erro = f_error(H, src, dst)
     mask[erro < tolerance] = 1
     return mask
 
@@ -87,7 +115,7 @@ def calcHomography(src, dst, normalize=True):
     return H
 
 
-def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N=2000,
+def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N=1000,
            f_error=transferError, normalize=True):
 
     if len(src_pts) < min_pts_required:
@@ -104,13 +132,12 @@ def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N
     num_inliers = 0
 
     for i in range(0, N):
-        collinear = True
-        while collinear:
+        goodSubset = False
+        while not(goodSubset):
             samples_index = random.sample(range(NUM_POINTS), min_pts_required)
             src_sample = src_pts[samples_index]
-            collinear = isCollinear(src_sample)
-
-        dst_sample = dst_pts[samples_index]
+            dst_sample = dst_pts[samples_index]
+            goodSubset = checkSubset(src_sample, dst_sample)
 
         H = calcHomography(src_sample, dst_sample, normalize=True)
 
@@ -124,7 +151,6 @@ def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N
             num_inliers = inliers
             H_best = H
             mask_best = mask
-
     print(num_inliers)
     return H_best, mask_best
 
@@ -157,15 +183,15 @@ def findHomography(src, dst, type="RANSAC", reprojectionErrorThreshold=5.0):
     H, mask = RANSAC(src, dst)
 
     idx = (mask == 1)
-
-    # NORMALIZAR PONTOS
     H = calcHomography(src[idx], dst[idx], normalize=True)
 
     # OTIMIZAR
     # H^-1 x dst, H para funcao de otimizacao
+    src = cart2homo(src[idx]).T
+    dst = cart2homo(dst[idx]).T
 
-    #optimize(src, dst, H)
-
+    solucao = optimize.least_squares(symmetricError, H.reshape(-1), method="lm", args=(src, dst), verbose=1, max_nfev=50000)
+    H = solucao.x.reshape((3, 3))
     # [[ 3.88128952e-01  5.19597837e-02  1.20670565e+01]
     # [-2.49799069e-01  7.69568940e-01  2.23373460e+02]
     # [-3.28739078e-04  1.58800881e-04  1.00000000e+00]]
