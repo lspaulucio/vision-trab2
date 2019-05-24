@@ -26,8 +26,8 @@ from matplotlib import pyplot as plt
 # Using SIFT to estimate Homography between images and to warp the first image
 
 MIN_MATCH_COUNT = 10
-img1 = cv.imread('images/box.jpg', 0)  # queryImage
-img2 = cv.imread('images/photo02a.jpg', 0)  # trainImage
+img1 = cv.imread('images/aerea1.jpg', 0)  # queryImage
+img2 = cv.imread('images/aerea2.jpg', 0)  # trainImage
 
 # img1 = imutils.rotate_bound(img1,180)
 
@@ -59,7 +59,7 @@ matches = flann.knnMatch(des1, des2, k=2)
 # store all the good matches as per Lowe's ratio test.
 good = []
 for m, n in matches:
-    if m.distance < 0.70*n.distance:
+    if m.distance < 0.7*n.distance:
         good.append(m)
 
 if len(good) > MIN_MATCH_COUNT:

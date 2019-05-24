@@ -10,6 +10,8 @@ import scipy.optimize as optimize
 
 
 def transferError(H, x, xi):
+    """ Calcule transfer error from points"""
+
     H = H.reshape((3, 3))
     x_p = np.dot(H, x)
     x_p /= x_p[2]
@@ -18,6 +20,8 @@ def transferError(H, x, xi):
 
 
 def symmetricError(H, x, xi):
+    """ Calcule symmetric error from points"""
+
     H = H.reshape((3,3))
     x_p = np.dot(H, x)
     x_p /= x_p[2]
@@ -29,7 +33,12 @@ def symmetricError(H, x, xi):
 
 
 def normalizePoints(points):
-    # 2d points [x,y]: First column xi, second column yi
+    """ Function that normalize points
+    2d points [xi, yi]:
+    First column xi, second column yi
+    Return normalized points and transformation matrix
+    """
+
     # Centroid
     center = np.mean(points, axis=0)  # [x_bar, y_bar]
 
@@ -46,6 +55,7 @@ def normalizePoints(points):
 
 
 def checkSubset(src, dst):
+    """ Check points collinearity by calculating triangle area"""
 
     if len(src) != 4 or len(dst) != 4:
         print("Subset length isn't 4")
@@ -54,7 +64,7 @@ def checkSubset(src, dst):
     EPSILON = 0.000005
     indexes = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]]
 
-    negative = 0;
+    negative = 0
 
     for i in indexes:
         matA = cart2homo(src[i])
@@ -76,15 +86,16 @@ def checkSubset(src, dst):
         # "Speeding-up homography estimation in mobile devices"
         # Journal of Real-Time Image Processing. 2013. DOI: 10.1007/s11554-012-0314-1
         # Pablo Marquez-Neila, Javier Lopez-Alberca, Jose M. Buenaposada, Luis Baumela
-        negative += areaA * areaB < 0;
+        negative += areaA * areaB < 0
 
     if negative != 0 and negative != 4:
-        return False;
+        return False
 
-    return True;
+    return True
 
 
 def getInliersNumber(src, dst, H, tolerance, f_error):
+    """ Counting the number of inliers on set """
 
     mask = np.zeros(len(src))
 
@@ -97,6 +108,7 @@ def getInliersNumber(src, dst, H, tolerance, f_error):
 
 
 def calcHomography(src, dst, normalize=True):
+    """ Calcule homography matrix using DLT algorithm"""
 
     if normalize:
         # Normalizing points
@@ -115,22 +127,17 @@ def calcHomography(src, dst, normalize=True):
     return H
 
 
-# e =  proporção de outliers
-# p = probabilidade de existir uma amostra boa eg = 0.99
-# s = number of samples eg 4 homography
-# N = log(1-p)/log(1 - (1-e)^s)
-
-
 def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N=1000,
            f_error=transferError, normalize=True):
+    """ Ransac algorithm """
 
     if len(src_pts) < min_pts_required:
         print("Number of src points don't satisfy minimum required.")
-        return None
+        exit()
 
     if len(src_pts) != len(dst_pts):
         print("Number of src points and dst points don't match.")
-        return None
+        exit()
 
     NUM_POINTS = len(src_pts)
     H_best = None
@@ -162,10 +169,12 @@ def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N
 
 
 def cart2homo(points):
+    """ Converting cartesian points to homogeneous coordinates"""
     return np.append(points, np.ones((len(points), 1)), axis=1)
 
 
 def createMatrixA(x, y):
+    """ Creating A matrix for DLT """
 
     N = len(x)
     A = np.zeros((2*N, 9))
@@ -174,10 +183,10 @@ def createMatrixA(x, y):
         i *= 2
         x, y = p
         xp, yp = pi
-        # primeira linha
+        # first line
         A[i, 0:3] = np.insert(-p, 2, -1)  # -x -y -1 0 0 0 x*xp y*xp xp
         A[i, -3:] = np.array([x*xp, y*xp, xp])
-        # segunda linha
+        # second line
         A[i+1, 3:6] = np.insert(-p, 2, -1)  # 0 0 0 -x -y -1 x*yp y*yp yp
         A[i+1, -3:] = np.array([x*yp, y*yp, yp])
 
@@ -185,24 +194,24 @@ def createMatrixA(x, y):
 
 
 def findHomography(src, dst, type="RANSAC", reprojectionErrorThreshold=5.0):
+    """ Find homography between two points set """
 
+    # Finding best H with Ransac
     H, mask = RANSAC(src, dst)
 
     idx = (mask == 1)
+
+    # Calculating homography for all inliers
     H = calcHomography(src[idx], dst[idx], normalize=True)
 
-    # OTIMIZAR
-    # H^-1 x dst, H para funcao de otimizacao
     src = cart2homo(src[idx]).T
     dst = cart2homo(dst[idx]).T
 
-    solucao = optimize.least_squares(symmetricError, H.reshape(-1), method="lm", args=(src, dst), verbose=False, max_nfev=50000)
+    # Optimizing H with least squares
+    solucao = optimize.least_squares(symmetricError, H.reshape(-1), method="lm", args=(src, dst),
+                                     verbose=False, max_nfev=50000)
     H = solucao.x.reshape((3, 3))
     print("Number of inliers: {}".format(np.count_nonzero(mask)))
     print("H:\n {}".format(H))
-
-    # [[ 3.88128952e-01  5.19597837e-02  1.20670565e+01]
-    # [-2.49799069e-01  7.69568940e-01  2.23373460e+02]
-    # [-3.28739078e-04  1.58800881e-04  1.00000000e+00]]
 
     return H, mask
