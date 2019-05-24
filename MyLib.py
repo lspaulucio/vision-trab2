@@ -14,7 +14,7 @@ def transferError(H, x, xi):
     x_p = np.dot(H, x)
     x_p /= x_p[2]
 
-    return np.linalg.norm(xi - x_p, axis=0)
+    return np.square(np.linalg.norm(xi - x_p, axis=0))
 
 
 def symmetricError(H, x, xi):
@@ -25,7 +25,7 @@ def symmetricError(H, x, xi):
     xi_p = np.dot(np.linalg.inv(H), xi)
     xi_p /= xi_p[2]
 
-    return np.linalg.norm(xi - x_p, axis=0) + np.linalg.norm(x - xi_p, axis=0)
+    return np.square(np.linalg.norm(xi - x_p, axis=0) + np.linalg.norm(x - xi_p, axis=0))
 
 
 def normalizePoints(points):
@@ -113,6 +113,12 @@ def calcHomography(src, dst, normalize=True):
         H = np.dot(np.linalg.inv(dst_T), H)
 
     return H
+
+
+# e =  proporção de outliers
+# p = probabilidade de existir uma amostra boa eg = 0.99
+# s = number of samples eg 4 homography
+# N = log(1-p)/log(1 - (1-e)^s)
 
 
 def RANSAC(src_pts, dst_pts, min_pts_required=4, tolerance=5.0, threshold=0.6, N=1000,
