@@ -22,7 +22,7 @@ def transferError(H, x, xi):
 def symmetricError(H, x, xi):
     """ Calcule symmetric error from points"""
 
-    H = H.reshape((3,3))
+    H = H.reshape((3, 3))
     x_p = np.dot(H, x)
     x_p /= x_p[2]
 

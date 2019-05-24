@@ -11,7 +11,8 @@ Neste trabalho vocês deverão calcular a homografia entre duas imagens, usando:
 
 - um método de reprojeção das imagens para se obter a Imagem 1 no referencial da Imagem 2 e vice-versa.
 
-Vocês deverão testar o algoritmo desenvolvido com os casos que vimos na aula de Homografia no Google Colab.
+Vocês deverão testar o algoritmo desenvolvido com os casos que vimos na aula de Homografia
+no Google Colab.
 
 O trabalho poderá ser feito em dupla e deverá ser entregue/apresentado até o dia 24/05/2019.
 
@@ -26,8 +27,8 @@ from matplotlib import pyplot as plt
 # Using SIFT to estimate Homography between images and to warp the first image
 
 MIN_MATCH_COUNT = 10
-img1 = cv.imread('images/aerea1.jpg', 0)  # queryImage
-img2 = cv.imread('images/aerea2.jpg', 0)  # trainImage
+img1 = cv.imread('images/box.jpg', 0)  # queryImage
+img2 = cv.imread('images/photo02a.jpg', 0)  # trainImage
 
 # img1 = imutils.rotate_bound(img1,180)
 
@@ -68,29 +69,29 @@ if len(good) > MIN_MATCH_COUNT:
     M, mask = ml.findHomography(src_pts, dst_pts, cv.RANSAC, 5.0)
     matchesMask = mask.ravel().tolist()
 
-    img4 = cv.warpPerspective(img1, M, (img1.shape[1],img1.shape[0]))
+    img4 = cv.warpPerspective(img1, M, (img1.shape[1], img1.shape[0]))
 else:
     print("Not enough matches are found - {}/{}".format(len(good), MIN_MATCH_COUNT))
     matchesMask = None
     exit()
 
-draw_params = dict(matchColor=(0,255,0),  # draw matches in green color
+draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
                    singlePointColor=None,
                    matchesMask=matchesMask,  # draw only inliers
                    flags=2)
-img3 = cv.drawMatches(img1,kp1,img2,kp2,good,None,**draw_params)
+img3 = cv.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
 
-fig = plt.figure(figsize=(25,10))
-ax1 = fig.add_subplot(2,2,1)
+fig = plt.figure(figsize=(25, 10))
+ax1 = fig.add_subplot(2, 2, 1)
 plt.imshow(img3, 'gray')
-ax1 = fig.add_subplot(2,2,2)
+ax1 = fig.add_subplot(2, 2, 2)
 plt.title('First image')
-plt.imshow(img1,'gray')
-ax1 = fig.add_subplot(2,2,3)
+plt.imshow(img1, 'gray')
+ax1 = fig.add_subplot(2, 2, 3)
 plt.title('Second image')
-plt.imshow(img2,'gray')
-ax1 = fig.add_subplot(2,2,4)
+plt.imshow(img2, 'gray')
+ax1 = fig.add_subplot(2, 2, 4)
 plt.title('First image after transformation')
-plt.imshow(img4,'gray')
+plt.imshow(img4, 'gray')
 
 plt.show()
